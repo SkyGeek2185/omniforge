@@ -149,3 +149,77 @@ button:focus-visible,
     min-height: 220px;
   }
 }
+
+.forge-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.forge-controls {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.forge-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.forge-field span {
+  font-size: 0.86rem;
+  color: var(--text-muted);
+}
+
+.forge-field select,
+.forge-field input {
+  width: 100%;
+  padding: 0.62rem 0.75rem;
+  border-radius: 0.62rem;
+  border: 1px solid rgba(93, 192, 255, 0.22);
+  background: rgba(19, 26, 35, 0.9);
+  color: var(--text-primary);
+}
+
+.forge-field input[type='range'] {
+  padding: 0;
+}
+
+.forge-field select:focus-visible,
+.forge-field input:focus-visible {
+  outline: none;
+  border-color: rgba(93, 192, 255, 0.7);
+  box-shadow: var(--glow-soft);
+}
+
+.forge-seed-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+}
+
+.forge-generate-button {
+  font-size: 0.98rem;
+  border-color: rgba(93, 192, 255, 0.75);
+  box-shadow: var(--glow-soft);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.forge-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.forge-output {
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}

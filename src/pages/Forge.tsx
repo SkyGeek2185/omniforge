@@ -1,10 +1,18 @@
 import { useState } from 'react'
+import { generateProgression } from '../features/forge/progressionEngine'
 
-const GENRES = ['Afro', 'Lo-Fi', 'R&B/Pop', 'Trap'] as const
+const GENRES = ['Afro', 'LoFi', 'RnBPop', 'Trap'] as const
 const KEYS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const
 const SCALES = ['Major', 'Minor', 'Dorian'] as const
 const BARS = [2, 4, 8] as const
 const COMPLEXITIES = ['Simple', 'Medium', 'Spicy'] as const
+
+const GENRE_LABELS: Record<(typeof GENRES)[number], string> = {
+  Afro: 'Afro',
+  LoFi: 'Lo-Fi',
+  RnBPop: 'R&B/Pop',
+  Trap: 'Trap',
+}
 
 export default function Forge() {
   const [genre, setGenre] = useState<(typeof GENRES)[number]>('Afro')
@@ -14,14 +22,23 @@ export default function Forge() {
   const [complexity, setComplexity] = useState<(typeof COMPLEXITIES)[number]>('Medium')
   const [humanize, setHumanize] = useState(45)
   const [seed, setSeed] = useState(4242)
+  const [generated, setGenerated] = useState<{ romanNumerals: string[]; chordNames: string[] } | null>(null)
 
   const randomizeSeed = () => {
     setSeed(Math.floor(Math.random() * 1_000_000))
   }
 
   const handleGenerate = () => {
-    // MIDI generation logic will be added in a future step.
-    // State is intentionally managed now so control wiring is ready.
+    const result = generateProgression({
+      genre,
+      key,
+      scale,
+      bars,
+      complexity,
+      seed,
+    })
+
+    setGenerated(result)
   }
 
   return (
@@ -36,7 +53,7 @@ export default function Forge() {
             <select value={genre} onChange={(event) => setGenre(event.target.value as (typeof GENRES)[number])}>
               {GENRES.map((option) => (
                 <option key={option} value={option}>
-                  {option}
+                  {GENRE_LABELS[option]}
                 </option>
               ))}
             </select>
@@ -126,7 +143,18 @@ export default function Forge() {
       <div className="forge-preview card">
         <h2>Generated Progression</h2>
         <div className="forge-output card">
-          <p>No progression generated yet. Choose settings and press Generate to begin.</p>
+          {generated ? (
+            <>
+              <p>
+                <strong>Roman Numerals:</strong> {generated.romanNumerals.join(' • ')}
+              </p>
+              <p>
+                <strong>Chord Names:</strong> {generated.chordNames.join(' • ')}
+              </p>
+            </>
+          ) : (
+            <p>No progression generated yet. Choose settings and press Generate to begin.</p>
+          )}
         </div>
       </div>
     </section>

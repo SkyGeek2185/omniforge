@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { generateMidi } from '../features/forge/midiEngine'
 import { generateProgression } from '../features/forge/progressionEngine'
 
 const GENRES = ['Afro', 'LoFi', 'RnBPop', 'Trap'] as const
@@ -23,6 +24,7 @@ export default function Forge() {
   const [humanize, setHumanize] = useState(45)
   const [seed, setSeed] = useState(4242)
   const [generated, setGenerated] = useState<{ romanNumerals: string[]; chordNames: string[] } | null>(null)
+  const [midiData, setMidiData] = useState<Uint8Array | null>(null)
 
   const randomizeSeed = () => {
     setSeed(Math.floor(Math.random() * 1_000_000))
@@ -39,6 +41,25 @@ export default function Forge() {
     })
 
     setGenerated(result)
+    setMidiData(
+      generateMidi({
+        chordNames: result.chordNames,
+        bars,
+        tempo: 120,
+      }),
+    )
+  }
+
+  const handleDownloadMidi = () => {
+    if (!midiData) return
+
+    const blob = new Blob([midiData], { type: 'audio/midi' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = 'omniforge.mid'
+    anchor.click()
+    URL.revokeObjectURL(url)
   }
 
   return (
@@ -134,7 +155,7 @@ export default function Forge() {
           <button type="button" className="forge-generate-button" onClick={handleGenerate}>
             Generate
           </button>
-          <button type="button" disabled>
+          <button type="button" onClick={handleDownloadMidi} disabled={!midiData}>
             Download MIDI
           </button>
         </div>

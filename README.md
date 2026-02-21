@@ -1,2 +1,10 @@
-# omniforge
-Omniforge is a multi-genre creative forge designed to ignite inspiration and empower producers to craft their next record from a powerful foundation. Built to evolve across genres, workflows, and creative ecosystems.
+# OmniForge
+
+React + Vite + TypeScript starter with ESLint and React Router.
+
+## Scripts
+
+- `npm install`
+- `npm run dev`
+- `npm run lint`
+- `npm run build`

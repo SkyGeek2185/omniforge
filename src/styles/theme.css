@@ -126,3 +126,26 @@ button:focus-visible,
   margin: 0 auto;
   padding: 2rem 1.5rem 3rem;
 }
+
+
+.forge-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.forge-panel,
+.forge-preview {
+  min-height: 420px;
+}
+
+@media (max-width: 860px) {
+  .forge-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .forge-panel,
+  .forge-preview {
+    min-height: 220px;
+  }
+}

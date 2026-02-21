@@ -26,6 +26,7 @@ export default function Layout() {
           ))}
         </nav>
       </header>
+
       <main className="layout__main">
         <Outlet />
       </main>

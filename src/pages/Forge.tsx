@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { generateMidi } from '../features/forge/midiEngine'
 import { generateProgression } from '../features/forge/progressionEngine'
+import type { GroovePlan, GrooveStyle } from '../features/forge/groovePlan'
 
 const GENRES = ['Afro', 'LoFi', 'RnBPop', 'Trap'] as const
 const KEYS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const
 const SCALES = ['Major', 'Minor', 'Dorian'] as const
 const BARS = [2, 4, 8] as const
 const COMPLEXITIES = ['Simple', 'Medium', 'Spicy'] as const
+const GROOVE_STYLES: GrooveStyle[] = ['Straight', 'Swing', 'AfroPulse', 'TrapHats', 'LofiLazy']
 
 const GENRE_LABELS: Record<(typeof GENRES)[number], string> = {
   Afro: 'Afro',
@@ -23,7 +25,12 @@ export default function Forge() {
   const [complexity, setComplexity] = useState<(typeof COMPLEXITIES)[number]>('Medium')
   const [humanize, setHumanize] = useState(45)
   const [seed, setSeed] = useState(4242)
+  const [grooveStyle, setGrooveStyle] = useState<GrooveStyle>('Straight')
+  const [chordsEnabled, setChordsEnabled] = useState(true)
+  const [bassEnabled, setBassEnabled] = useState(true)
+  const [drumsEnabled, setDrumsEnabled] = useState(true)
   const [generated, setGenerated] = useState<{ romanNumerals: string[]; chordNames: string[] } | null>(null)
+  const [previewPlan, setPreviewPlan] = useState<GroovePlan | null>(null)
   const [midiData, setMidiData] = useState<Uint8Array | null>(null)
 
   const randomizeSeed = () => {
@@ -41,13 +48,22 @@ export default function Forge() {
     })
 
     setGenerated(result)
-    setMidiData(
-      generateMidi({
-        chordNames: result.chordNames,
-        bars,
-        tempo: 120,
-      }),
-    )
+    const midiResult = generateMidi({
+      chordNames: result.chordNames,
+      bars,
+      tempo: 120,
+      seed,
+      humanize,
+      genre,
+      grooveStyle,
+      enabledLanes: {
+        chords: chordsEnabled,
+        bass: bassEnabled,
+        drums: drumsEnabled,
+      },
+    })
+    setMidiData(midiResult.midiData)
+    setPreviewPlan(midiResult.groovePlan)
   }
 
   const handleDownloadMidi = () => {
@@ -75,6 +91,17 @@ export default function Forge() {
               {GENRES.map((option) => (
                 <option key={option} value={option}>
                   {GENRE_LABELS[option]}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="forge-field">
+            <span>Groove Style</span>
+            <select value={grooveStyle} onChange={(event) => setGrooveStyle(event.target.value as GrooveStyle)}>
+              {GROOVE_STYLES.map((option) => (
+                <option key={option} value={option}>
+                  {option}
                 </option>
               ))}
             </select>
@@ -127,6 +154,22 @@ export default function Forge() {
             </select>
           </label>
 
+          <fieldset className="forge-field forge-lane-grid">
+            <legend>Lanes</legend>
+            <label>
+              <input type="checkbox" checked={chordsEnabled} onChange={(event) => setChordsEnabled(event.target.checked)} />
+              Chords
+            </label>
+            <label>
+              <input type="checkbox" checked={bassEnabled} onChange={(event) => setBassEnabled(event.target.checked)} />
+              Bass
+            </label>
+            <label>
+              <input type="checkbox" checked={drumsEnabled} onChange={(event) => setDrumsEnabled(event.target.checked)} />
+              Drums
+            </label>
+          </fieldset>
+
           <label className="forge-field">
             <span>Humanize: {humanize}</span>
             <input
@@ -175,6 +218,36 @@ export default function Forge() {
             </>
           ) : (
             <p>No progression generated yet. Choose settings and press Generate to begin.</p>
+          )}
+        </div>
+
+        <div className="forge-output card forge-preview-panel">
+          <h3>Groove Preview</h3>
+          {previewPlan ? (
+            <>
+              <p>
+                <strong>Style:</strong> {grooveStyle}
+              </p>
+              <p>
+                <strong>Kick Steps:</strong>{' '}
+                {previewPlan.drumTemplate.kick16
+                  .map((step, index) => (step ? index + 1 : null))
+                  .filter((step): step is number => step !== null)
+                  .join(', ')}
+              </p>
+              <p>
+                <strong>Snare Steps:</strong>{' '}
+                {previewPlan.drumTemplate.snare16
+                  .map((step, index) => (step ? index + 1 : null))
+                  .filter((step): step is number => step !== null)
+                  .join(', ')}
+              </p>
+              <p>
+                <strong>Bass Density / Bar:</strong> {previewPlan.bass16.filter((step) => step === 1).length}
+              </p>
+            </>
+          ) : (
+            <p>Generate to inspect the groove plan.</p>
           )}
         </div>
       </div>

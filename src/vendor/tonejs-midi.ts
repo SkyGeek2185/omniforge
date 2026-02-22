@@ -3,6 +3,7 @@ type NoteOptions = {
   ticks: number
   durationTicks: number
   velocity?: number
+  channel?: number
 }
 
 type MidiEvent = {
@@ -10,6 +11,7 @@ type MidiEvent = {
   type: 'noteOn' | 'noteOff'
   note: number
   velocity: number
+  channel: number
 }
 
 const HEADER_CHUNK = [0x4d, 0x54, 0x68, 0x64]
@@ -41,17 +43,19 @@ const toUint32 = (value: number) => [(value >>> 24) & 0xff, (value >>> 16) & 0xf
 
 const clampMidi = (value: number) => Math.max(0, Math.min(127, Math.round(value)))
 const clampVelocity = (value: number) => Math.max(0, Math.min(127, Math.round(value * 127)))
+const clampChannel = (value: number) => Math.max(0, Math.min(15, Math.round(value)))
 
 class MidiTrack {
   name = ''
   private events: MidiEvent[] = []
 
-  addNote({ midi, ticks, durationTicks, velocity = 0.8 }: NoteOptions) {
+  addNote({ midi, ticks, durationTicks, velocity = 0.8, channel = 0 }: NoteOptions) {
     this.events.push({
       ticks,
       type: 'noteOn',
       note: clampMidi(midi),
       velocity: clampVelocity(velocity),
+      channel: clampChannel(channel),
     })
 
     this.events.push({
@@ -59,6 +63,7 @@ class MidiTrack {
       type: 'noteOff',
       note: clampMidi(midi),
       velocity: 0,
+      channel: clampChannel(channel),
     })
   }
 
@@ -75,7 +80,7 @@ class MidiTrack {
     for (const event of sorted) {
       const delta = event.ticks - previousTick
       data.push(...toVariableLength(delta))
-      data.push(event.type === 'noteOn' ? 0x90 : 0x80, event.note, event.velocity)
+      data.push((event.type === 'noteOn' ? 0x90 : 0x80) + event.channel, event.note, event.velocity)
       previousTick = event.ticks
     }
 

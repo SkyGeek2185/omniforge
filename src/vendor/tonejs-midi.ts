@@ -49,6 +49,13 @@ class MidiTrack {
   name = ''
   private events: MidiEvent[] = []
 
+  private toTrackNameData() {
+    if (!this.name) return []
+
+    const nameBytes = Array.from(new TextEncoder().encode(this.name))
+    return [0x00, 0xff, 0x03, ...toVariableLength(nameBytes.length), ...nameBytes]
+  }
+
   addNote({ midi, ticks, durationTicks, velocity = 0.8, channel = 0 }: NoteOptions) {
     this.events.push({
       ticks,
@@ -74,7 +81,7 @@ class MidiTrack {
       return a.type === 'noteOff' ? -1 : 1
     })
 
-    const data: number[] = []
+    const data: number[] = this.toTrackNameData()
     let previousTick = 0
 
     for (const event of sorted) {

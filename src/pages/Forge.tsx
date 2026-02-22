@@ -56,6 +56,7 @@ export default function Forge() {
       humanize,
       genre,
       grooveStyle,
+      complexity,
       enabledLanes: {
         chords: chordsEnabled,
         bass: bassEnabled,
@@ -226,7 +227,7 @@ export default function Forge() {
           {previewPlan ? (
             <>
               <p>
-                <strong>Style:</strong> {grooveStyle}
+                <strong>grooveStyle:</strong> {previewPlan.grooveStyle}
               </p>
               <p>
                 <strong>Kick Steps:</strong>{' '}
@@ -243,7 +244,7 @@ export default function Forge() {
                   .join(', ')}
               </p>
               <p>
-                <strong>Bass Density / Bar:</strong> {previewPlan.bass16.filter((step) => step === 1).length}
+                <strong>Bass Active Steps / Bar:</strong> {previewPlan.bass16.filter((step) => step === 1).length}
               </p>
             </>
           ) : (

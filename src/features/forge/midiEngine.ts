@@ -3,6 +3,7 @@ import { buildGroovePlan, type GroovePlan, type GrooveStyle } from './groovePlan
 import { genreProfiles } from './genreProfiles'
 
 type Genre = keyof typeof genreProfiles
+type Complexity = 'Simple' | 'Medium' | 'Spicy'
 
 type GenerateMidiOptions = {
   chordNames: string[]
@@ -12,6 +13,7 @@ type GenerateMidiOptions = {
   humanize: number
   genre: Genre
   grooveStyle: GrooveStyle
+  complexity: Complexity
   enabledLanes: {
     chords: boolean
     bass: boolean
@@ -96,11 +98,35 @@ const getBassChordTones = (chordName: string) => {
   return { root, third, fifth }
 }
 
-const getStepTicks = (barIndex: number, stepIndex: number, plan: GroovePlan, random: () => number) => {
+const getStepTicks = (
+  barIndex: number,
+  stepIndex: number,
+  plan: GroovePlan,
+  random: () => number,
+  humanizeAmount = 1,
+) => {
   const swingOffset = stepIndex % 2 === 1 ? STEP_TICKS * plan.swingAmount : 0
-  const humanizeTicks = ((random() * 2 - 1) * plan.humanizeMs * TICKS_PER_BEAT) / (60_000 / plan.bpm)
+  const humanizeTicks = ((random() * 2 - 1) * plan.humanizeMs * humanizeAmount * TICKS_PER_BEAT) / (60_000 / plan.bpm)
   const ticks = barIndex * BAR_TICKS + stepIndex * STEP_TICKS + swingOffset + humanizeTicks
   return Math.max(0, Math.round(ticks))
+}
+
+
+const getScaleSemitonesForChord = (chordName: string) => {
+  const isMinor = /(^|[^a-z])m(?!aj)/i.test(chordName)
+  return isMinor ? [0, 2, 3, 5, 7, 8, 10] : [0, 2, 4, 5, 7, 9, 11]
+}
+
+const normalizeToBassRegister = (midi: number, allowOctaveJump: boolean, random: () => number) => {
+  let note = midi
+  while (note > 48) note -= 12
+  while (note < 36) note += 12
+
+  if (allowOctaveJump && random() < 0.22) {
+    note = clamp(note + (random() < 0.5 ? -12 : 12), 36, 48)
+  }
+
+  return clamp(note, 36, 48)
 }
 
 const chordsLane = (chordTrack: ReturnType<Midi['addTrack']>, plan: GroovePlan, harmony: HarmonyInfo, random: () => number) => {
@@ -111,7 +137,7 @@ const chordsLane = (chordTrack: ReturnType<Midi['addTrack']>, plan: GroovePlan, 
     if (plan.chord16) {
       for (let step = 0; step < STEPS_PER_BAR; step += 1) {
         if (plan.chord16[step] !== 1) continue
-        const chordStart = getStepTicks(barIndex, step, plan, random)
+        const chordStart = getStepTicks(barIndex, step, plan, random, 0.35)
 
         for (const note of triad) {
           chordTrack.addNote({
@@ -128,7 +154,7 @@ const chordsLane = (chordTrack: ReturnType<Midi['addTrack']>, plan: GroovePlan, 
     for (const note of triad) {
       chordTrack.addNote({
         midi: note,
-        ticks: getStepTicks(barIndex, 0, plan, random),
+        ticks: getStepTicks(barIndex, 0, plan, random, 0.35),
         durationTicks: BAR_TICKS,
         velocity: 0.65,
       })
@@ -141,38 +167,61 @@ const bassLane = (
   plan: GroovePlan,
   harmony: HarmonyInfo,
   genre: Genre,
+  complexity: Complexity,
+  seed: number,
   random: () => number,
 ) => {
   const favorsKickUnison = genre === 'Trap'
+  const allowOctaveJump = complexity === 'Spicy'
 
   for (let barIndex = 0; barIndex < plan.bars; barIndex += 1) {
     const chordName = harmony.chordNames[barIndex % harmony.chordNames.length]
     const tones = getBassChordTones(chordName)
+    const chordTonePool = [tones.root, tones.fifth, tones.third]
+    const scaleSemitones = getScaleSemitonesForChord(chordName)
+    const rootPitchClass = ((tones.root % 12) + 12) % 12
 
-    const anchorPool = [tones.root, tones.fifth, tones.third]
+    const anchorIndex = (seed + barIndex) % chordTonePool.length
+    const anchorMidi = normalizeToBassRegister(chordTonePool[anchorIndex], allowOctaveJump, random)
     bassTrack.addNote({
-      midi: anchorPool[Math.floor(random() * anchorPool.length)],
-      ticks: getStepTicks(barIndex, 0, plan, random),
-      durationTicks: STEP_TICKS,
-      velocity: 0.78,
+      midi: anchorMidi,
+      ticks: getStepTicks(barIndex, 0, plan, random, 1),
+      durationTicks: Math.round(STEP_TICKS * (random() < 0.6 ? 0.75 : 1.1)),
+      velocity: 0.8,
     })
 
+    let pendingResolution = 0
+
     for (let step = 1; step < STEPS_PER_BAR; step += 1) {
-      if (plan.bass16[step] !== 1) continue
+      if (plan.bass16[step] !== 1) {
+        if (pendingResolution > 0) pendingResolution -= 1
+        continue
+      }
 
       let probability = 1
       if (plan.drumTemplate.kick16[step] === 1 && !favorsKickUnison) {
-        probability = 0.35
+        probability = 0.22
       }
 
       if (random() > probability) continue
 
-      const melodicChance = random()
-      const midi = melodicChance < 0.6 ? tones.root : melodicChance < 0.82 ? tones.fifth : tones.third
+      const shouldResolve = pendingResolution > 0
+      const useChordTone = shouldResolve || random() < 0.6
+
+      let midi: number
+      if (useChordTone) {
+        midi = chordTonePool[Math.floor(random() * chordTonePool.length)]
+        pendingResolution = 0
+      } else {
+        const scaleSemitone = scaleSemitones[Math.floor(random() * scaleSemitones.length)]
+        midi = 36 + ((rootPitchClass + scaleSemitone) % 12)
+        pendingResolution = random() < 0.5 ? 1 : 2
+      }
+
       bassTrack.addNote({
-        midi,
-        ticks: getStepTicks(barIndex, step, plan, random),
-        durationTicks: Math.round(STEP_TICKS * (step % 4 === 0 ? 1.8 : 1.2)),
+        midi: normalizeToBassRegister(midi, allowOctaveJump, random),
+        ticks: getStepTicks(barIndex, step, plan, random, 1),
+        durationTicks: Math.round(STEP_TICKS * (step % 4 === 0 ? 1.4 : 0.95)),
         velocity: clamp(0.68 + random() * 0.15, 0.55, 0.95),
       })
     }
@@ -212,6 +261,7 @@ export function generateMidi({
   humanize,
   genre,
   grooveStyle,
+  complexity,
   enabledLanes,
 }: GenerateMidiOptions): MidiGenerationResult {
   const midi = new Midi()
@@ -238,7 +288,7 @@ export function generateMidi({
   if (enabledLanes.bass) {
     const bassTrack = midi.addTrack()
     bassTrack.name = 'Bass'
-    bassLane(bassTrack, groovePlan, harmony, genre, random)
+    bassLane(bassTrack, groovePlan, harmony, genre, complexity, seed, random)
   }
 
   if (enabledLanes.drums) {

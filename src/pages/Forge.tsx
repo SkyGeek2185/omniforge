@@ -17,6 +17,14 @@ const GENRE_LABELS: Record<(typeof GENRES)[number], string> = {
   Trap: 'Trap',
 }
 
+const EXPORT_TEMPO = 120
+
+const LANE_EXPORTS = [
+  { key: 'chords', label: 'Chords' },
+  { key: 'bass', label: 'Bass' },
+  { key: 'drums', label: 'Drums' },
+] as const
+
 export default function Forge() {
   const [genre, setGenre] = useState<(typeof GENRES)[number]>('Afro')
   const [key, setKey] = useState<(typeof KEYS)[number]>('C')
@@ -51,7 +59,7 @@ export default function Forge() {
     const midiResult = generateMidi({
       chordNames: result.chordNames,
       bars,
-      tempo: 120,
+      tempo: EXPORT_TEMPO,
       seed,
       humanize,
       genre,
@@ -67,16 +75,47 @@ export default function Forge() {
     setPreviewPlan(midiResult.groovePlan)
   }
 
-  const handleDownloadMidi = () => {
-    if (!midiData) return
-
-    const blob = new Blob([midiData], { type: 'audio/midi' })
+  const downloadMidiFile = (data: Uint8Array, fileName: string) => {
+    const blob = new Blob([data], { type: 'audio/midi' })
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = 'omniforge.mid'
+    anchor.download = fileName
     anchor.click()
     URL.revokeObjectURL(url)
+  }
+
+  const handleDownloadFullMidi = () => {
+    if (!midiData) return
+
+    downloadMidiFile(midiData, 'omniforge.mid')
+  }
+
+  const handleDownloadLanesSeparately = () => {
+    if (!generated) return
+
+    for (const lane of LANE_EXPORTS) {
+      const enabledLanes = {
+        chords: false,
+        bass: false,
+        drums: false,
+      }
+      enabledLanes[lane.key] = true
+
+      const laneMidi = generateMidi({
+        chordNames: generated.chordNames,
+        bars,
+        tempo: EXPORT_TEMPO,
+        seed,
+        humanize,
+        genre,
+        grooveStyle,
+        complexity,
+        enabledLanes,
+      })
+
+      downloadMidiFile(laneMidi.midiData, `Omniforge_${lane.label}_${EXPORT_TEMPO}bpm_seed${seed}.mid`)
+    }
   }
 
   return (
@@ -199,8 +238,11 @@ export default function Forge() {
           <button type="button" className="forge-generate-button" onClick={handleGenerate}>
             Generate
           </button>
-          <button type="button" onClick={handleDownloadMidi} disabled={!midiData}>
-            Download MIDI
+          <button type="button" onClick={handleDownloadFullMidi} disabled={!midiData}>
+            Download Full MIDI
+          </button>
+          <button type="button" onClick={handleDownloadLanesSeparately} disabled={!generated}>
+            Download Lanes Separately
           </button>
         </div>
       </aside>

@@ -205,7 +205,7 @@ const bassLane = (
           probability = baseProbability + (1 - baseProbability) * lockAmount
         } else {
           const baseProbability = syncopatedProbability
-          const reducedProbability = baseProbability * 0.3
+          const reducedProbability = 0
           probability = baseProbability + (reducedProbability - baseProbability) * lockAmount
         }
       }

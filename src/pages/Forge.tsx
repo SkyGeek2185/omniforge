@@ -32,6 +32,7 @@ export default function Forge() {
   const [bars, setBars] = useState<(typeof BARS)[number]>(4)
   const [complexity, setComplexity] = useState<(typeof COMPLEXITIES)[number]>('Medium')
   const [humanize, setHumanize] = useState(45)
+  const [bassKickLock, setBassKickLock] = useState(20)
   const [seed, setSeed] = useState(4242)
   const [grooveStyle, setGrooveStyle] = useState<GrooveStyle>('Straight')
   const [chordsEnabled, setChordsEnabled] = useState(true)
@@ -65,6 +66,7 @@ export default function Forge() {
       genre,
       grooveStyle,
       complexity,
+      bassKickLock: bassKickLock / 100,
       enabledLanes: {
         chords: chordsEnabled,
         bass: bassEnabled,
@@ -111,6 +113,7 @@ export default function Forge() {
         genre,
         grooveStyle,
         complexity,
+        bassKickLock: bassKickLock / 100,
         enabledLanes,
       })
 
@@ -218,6 +221,18 @@ export default function Forge() {
               max={100}
               value={humanize}
               onChange={(event) => setHumanize(Number(event.target.value))}
+            />
+          </label>
+
+          <label className="forge-field">
+            <span title="0% = syncopated bounce, 100% = full kick unison">Bass-Kick Lock: {bassKickLock}</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={bassKickLock}
+              title="0% = syncopated bounce, 100% = full kick unison"
+              onChange={(event) => setBassKickLock(Number(event.target.value))}
             />
           </label>
 

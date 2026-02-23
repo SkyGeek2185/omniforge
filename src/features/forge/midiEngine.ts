@@ -14,6 +14,7 @@ type GenerateMidiOptions = {
   genre: Genre
   grooveStyle: GrooveStyle
   complexity: Complexity
+  bassKickLock: number
   enabledLanes: {
     chords: boolean
     bass: boolean
@@ -166,13 +167,14 @@ const bassLane = (
   bassTrack: ReturnType<Midi['addTrack']>,
   plan: GroovePlan,
   harmony: HarmonyInfo,
-  genre: Genre,
   complexity: Complexity,
+  bassKickLock: number,
   seed: number,
   random: () => number,
 ) => {
-  const favorsKickUnison = genre === 'Trap'
   const allowOctaveJump = complexity === 'Spicy'
+  const lockAmount = clamp(bassKickLock, 0, 1)
+  const keepAfroPulseTemplate = plan.grooveStyle === 'AfroPulse' && lockAmount < 0.4
 
   for (let barIndex = 0; barIndex < plan.bars; barIndex += 1) {
     const chordName = harmony.chordNames[barIndex % harmony.chordNames.length]
@@ -181,8 +183,9 @@ const bassLane = (
     const scaleSemitones = getScaleSemitonesForChord(chordName)
     const rootPitchClass = ((tones.root % 12) + 12) % 12
 
-    const anchorIndex = (seed + barIndex) % chordTonePool.length
-    const anchorMidi = normalizeToBassRegister(chordTonePool[anchorIndex], allowOctaveJump, random)
+    const anchorTonePool = [tones.root, tones.fifth]
+    const anchorIndex = (seed + barIndex) % anchorTonePool.length
+    const anchorMidi = normalizeToBassRegister(anchorTonePool[anchorIndex], allowOctaveJump, random)
     bassTrack.addNote({
       midi: anchorMidi,
       ticks: getStepTicks(barIndex, 0, plan, random, 1),
@@ -193,17 +196,25 @@ const bassLane = (
     let pendingResolution = 0
 
     for (let step = 1; step < STEPS_PER_BAR; step += 1) {
-      if (plan.bass16[step] !== 1) {
+      const syncopatedProbability = plan.bass16[step] === 1 ? 0.82 : 0.18
+
+      let probability = syncopatedProbability
+      if (!keepAfroPulseTemplate) {
+        if (plan.kick16[step] === 1) {
+          const baseProbability = 0.15
+          probability = baseProbability + (1 - baseProbability) * lockAmount
+        } else {
+          const baseProbability = syncopatedProbability
+          const reducedProbability = baseProbability * 0.3
+          probability = baseProbability + (reducedProbability - baseProbability) * lockAmount
+        }
+      }
+
+      probability = clamp(probability, 0, 1)
+      if (random() > probability) {
         if (pendingResolution > 0) pendingResolution -= 1
         continue
       }
-
-      let probability = 1
-      if (plan.drumTemplate.kick16[step] === 1 && !favorsKickUnison) {
-        probability = 0.22
-      }
-
-      if (random() > probability) continue
 
       const shouldResolve = pendingResolution > 0
       const useChordTone = shouldResolve || random() < 0.6
@@ -262,6 +273,7 @@ export function generateMidi({
   genre,
   grooveStyle,
   complexity,
+  bassKickLock,
   enabledLanes,
 }: GenerateMidiOptions): MidiGenerationResult {
   const midi = new Midi()
@@ -288,7 +300,7 @@ export function generateMidi({
   if (enabledLanes.bass) {
     const bassTrack = midi.addTrack()
     bassTrack.name = 'Bass'
-    bassLane(bassTrack, groovePlan, harmony, genre, complexity, seed, random)
+    bassLane(bassTrack, groovePlan, harmony, complexity, bassKickLock, seed, random)
   }
 
   if (enabledLanes.drums) {

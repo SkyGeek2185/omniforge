@@ -25,6 +25,7 @@ export type GroovePlan = {
     snare16: number[]
     hat16: number[]
   }
+  kick16: number[]
   bass16: number[]
   chord16?: number[]
 }
@@ -71,7 +72,7 @@ const buildAfroPulseBassTemplate = (random: () => number) => {
 export function buildGroovePlan({ genre, bpm, bars, seed, humanize, grooveStyle }: BuildGroovePlanOptions): GroovePlan {
   const random = mulberry32(seed)
 
-  const styleTemplates: Record<GrooveStyle, Omit<GroovePlan, 'grooveStyle' | 'bpm' | 'bars' | 'humanizeMs'>> = {
+  const styleTemplates: Record<GrooveStyle, Omit<GroovePlan, 'grooveStyle' | 'bpm' | 'bars' | 'humanizeMs' | 'kick16'>> = {
     Straight: {
       swingAmount: 0,
       accentMap16: [1.15, 0.92, 0.98, 0.9, 1.08, 0.94, 0.96, 0.9, 1.1, 0.92, 0.97, 0.9, 1.12, 0.95, 0.96, 0.91],
@@ -134,6 +135,16 @@ export function buildGroovePlan({ genre, bpm, bars, seed, humanize, grooveStyle 
 
   const afroPulseStyle = grooveStyle === 'AfroPulse'
 
+  const drumTemplate = {
+    kick16: afroPulseStyle ? template.drumTemplate.kick16 : varyBinaryPattern(template.drumTemplate.kick16, random, 0.1),
+    snare16: afroPulseStyle
+      ? template.drumTemplate.snare16
+      : varyBinaryPattern(template.drumTemplate.snare16, random, 0.06),
+    hat16: afroPulseStyle
+      ? template.drumTemplate.hat16
+      : varyBinaryPattern(template.drumTemplate.hat16, random, grooveStyle === 'TrapHats' ? 0.26 : 0.16),
+  }
+
   return {
     grooveStyle,
     bpm,
@@ -143,15 +154,8 @@ export function buildGroovePlan({ genre, bpm, bars, seed, humanize, grooveStyle 
     accentMap16: afroPulseStyle
       ? template.accentMap16
       : template.accentMap16.map((value) => clamp(value + (random() - 0.5) * 0.08, 0.7, 1.3)),
-    drumTemplate: {
-      kick16: afroPulseStyle ? template.drumTemplate.kick16 : varyBinaryPattern(template.drumTemplate.kick16, random, 0.1),
-      snare16: afroPulseStyle
-        ? template.drumTemplate.snare16
-        : varyBinaryPattern(template.drumTemplate.snare16, random, 0.06),
-      hat16: afroPulseStyle
-        ? template.drumTemplate.hat16
-        : varyBinaryPattern(template.drumTemplate.hat16, random, grooveStyle === 'TrapHats' ? 0.26 : 0.16),
-    },
+    drumTemplate,
+    kick16: drumTemplate.kick16,
     bass16: afroPulseStyle ? buildAfroPulseBassTemplate(random) : varyBinaryPattern(template.bass16, random, 0.12),
     chord16: template.chord16 ? varyBinaryPattern(template.chord16, random, 0.05) : undefined,
   }
